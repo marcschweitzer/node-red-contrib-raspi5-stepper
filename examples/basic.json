@@ -1,0 +1,247 @@
+[
+  {
+    "id": "stepper_demo",
+    "type": "tab",
+    "label": "raspi5-stepper demo",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "si0",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "1 turn right",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"direction\":\"right\",\"turns\":1}",
+    "payloadType": "json",
+    "x": 150,
+    "y": 60,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si1",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "1/4 turn left",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"direction\":\"left\",\"turns\":0.25}",
+    "payloadType": "json",
+    "x": 150,
+    "y": 100,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si2",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "512 steps right",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"direction\":\"right\",\"steps\":512}",
+    "payloadType": "json",
+    "x": 150,
+    "y": 140,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si3",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "run left",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "left",
+    "payloadType": "str",
+    "x": 150,
+    "y": 180,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si4",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "run right",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "right",
+    "payloadType": "str",
+    "x": 150,
+    "y": 220,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si5",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "stop",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "stop",
+    "payloadType": "str",
+    "x": 150,
+    "y": 260,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si6",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "release",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "release",
+    "payloadType": "str",
+    "x": 150,
+    "y": 300,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "si7",
+    "type": "inject",
+    "z": "stepper_demo",
+    "name": "zero",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "zero",
+    "payloadType": "str",
+    "x": 150,
+    "y": 340,
+    "wires": [
+      [
+        "st1"
+      ]
+    ]
+  },
+  {
+    "id": "st1",
+    "type": "raspi5-stepper",
+    "z": "stepper_demo",
+    "name": "",
+    "pin1": "5",
+    "pin2": "6",
+    "pin3": "13",
+    "pin4": "26",
+    "mode": "half",
+    "stepsPerTurn": "4096",
+    "stepMs": "2",
+    "defaultDir": "right",
+    "invert": false,
+    "release": true,
+    "x": 420,
+    "y": 200,
+    "wires": [
+      [
+        "dbg1"
+      ]
+    ]
+  },
+  {
+    "id": "dbg1",
+    "type": "debug",
+    "z": "stepper_demo",
+    "name": "result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "x": 610,
+    "y": 200,
+    "wires": []
+  }
+]

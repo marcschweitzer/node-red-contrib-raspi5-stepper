@@ -1,0 +1,214 @@
+<!-- node-red-contrib-raspi5-stepper/stepper.html -->
+
+<script type="text/x-red" data-template-name="raspi5-stepper">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="raspi5-stepper">
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-pin1"><i class="fa fa-plug"></i> IN1</label>
+    <select id="node-input-pin1" class="stepper-pin"></select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-pin2"><i class="fa fa-plug"></i> IN2</label>
+    <select id="node-input-pin2" class="stepper-pin"></select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-pin3"><i class="fa fa-plug"></i> IN3</label>
+    <select id="node-input-pin3" class="stepper-pin"></select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-pin4"><i class="fa fa-plug"></i> IN4</label>
+    <select id="node-input-pin4" class="stepper-pin"></select>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-mode"><i class="fa fa-cog"></i> Step mode</label>
+    <select id="node-input-mode">
+      <option value="half">Half step (smooth, 4096 steps/turn)</option>
+      <option value="full">Full step (more torque, 2048 steps/turn)</option>
+      <option value="wave">Wave (1 coil, low power, 2048 steps/turn)</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-stepsPerTurn"><i class="fa fa-repeat"></i> Steps per turn</label>
+    <input type="number" id="node-input-stepsPerTurn" min="1" step="1">
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-stepMs"><i class="fa fa-clock-o"></i> Step time (ms)</label>
+    <input type="number" id="node-input-stepMs" min="1" step="1">
+  </div>
+
+  <div class="form-row">
+    <label><i class="fa fa-tachometer"></i> Speed</label>
+    <span id="stepper-speed"></span>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-defaultDir"><i class="fa fa-arrows-h"></i> Default dir.</label>
+    <select id="node-input-defaultDir">
+      <option value="right">Right</option>
+      <option value="left">Left</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-invert"><i class="fa fa-exchange"></i> Invert</label>
+    <input type="checkbox" id="node-input-invert" style="width:auto;">
+    <span style="margin-left:10px;">(swap left / right)</span>
+  </div>
+
+  <div class="form-row">
+    <label for="node-input-release"><i class="fa fa-power-off"></i> Release</label>
+    <input type="checkbox" id="node-input-release" style="width:auto;">
+    <span style="margin-left:10px;">(coils off after each move, less heat, no holding torque)</span>
+  </div>
+
+  <hr>
+
+  <div class="form-row">
+    <label><i class="fa fa-plug"></i> Wiring</label>
+    <div id="stepper-pins" style="padding:8px; border:1px solid #ddd; border-radius:6px; background:#fafafa;"></div>
+  </div>
+
+  <div class="form-tips">
+    <b>Input (one request per message):</b><br>
+    <code>msg.direction</code> = <code>"left"</code> | <code>"right"</code> and <b>one</b> of
+    <code>msg.steps</code> or <code>msg.turns</code>.<br>
+    Only a direction = turn continuously until <code>msg.payload = "stop"</code>.<br>
+    Other commands: <code>"release"</code>, <code>"zero"</code>. Optional: <code>msg.stepMs</code>.<br>
+    <b>Output:</b> <code>topic=done</code> / <code>topic=stopped</code> with steps, turns and position.
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="raspi5-stepper">
+  <p>28BYJ-48 stepper motor with ULN2003 driver board for Raspberry Pi 5 (pure JS via sysfs GPIO).</p>
+
+  <h3>Configuration</h3>
+  <ul>
+    <li><b>IN1..IN4</b>: the 4 GPIOs connected to the ULN2003 inputs</li>
+    <li><b>Step mode</b>: half (smooth), full (more torque) or wave (low power)</li>
+    <li><b>Steps per turn</b>: 4096 in half step, 2048 in full / wave step (28BYJ-48)</li>
+    <li><b>Step time</b>: ms per step, smaller = faster (half step: min ~1 ms, full step: min ~2 ms)</li>
+  </ul>
+
+  <h3>Inputs</h3>
+  <p>Use <b>one</b> of <code>steps</code> or <code>turns</code> per request. Values can be in <code>msg</code> or in <code>msg.payload</code>.</p>
+  <pre>
+{ "direction":"right", "steps":512 }     512 steps right
+{ "direction":"left",  "turns":2 }       2 turns left
+{ "turns":0.25 }                         1/4 turn, default direction
+{ "steps":-100 }                         negative = other direction
+{ "direction":"left" }                   turn left until "stop"
+"right" / "left"                         same, as payload string
+"stop"                                   stop
+"release"                                stop + all coils off
+"zero"                                   set position to 0
+  </pre>
+  <p>Optional <code>msg.stepMs</code> changes the step time for this request. A new request stops the running one.</p>
+
+  <h3>Outputs</h3>
+  <pre>
+topic: "done" | "stopped"
+payload: { direction, requestedSteps, steps, turns, position, positionTurns, stepMs, ms }
+  </pre>
+
+  <h3>Safety</h3>
+  <p>Never connect the motor directly to the GPIOs, always use the ULN2003 board. Power the board with 5V (Pin 2/4 or an external supply with common GND).</p>
+</script>
+
+<script type="text/javascript">
+(function() {
+  // BCM GPIO -> physical header pin
+  var HEADER = {
+    2:3, 3:5, 4:7, 17:11, 27:13, 22:15, 10:19, 9:21, 11:23, 0:27, 5:29, 6:31, 13:33, 19:35, 26:37,
+    14:8, 15:10, 18:12, 23:16, 24:18, 25:22, 8:24, 7:26, 1:28, 12:32, 16:36, 20:38, 21:40
+  };
+  var USED_BY = {
+    2:"I2C1 SDA", 3:"I2C1 SCL", 0:"ID EEPROM", 1:"ID EEPROM", 14:"UART TX", 15:"UART RX",
+    8:"SPI0 CE0", 7:"SPI0 CE1", 9:"SPI0 MISO", 10:"SPI0 MOSI", 11:"SPI0 SCK",
+    18:"SPI1 CE0", 19:"SPI1 MISO", 20:"SPI1 MOSI", 21:"SPI1 SCK", 17:"SPI1 CE1", 16:"SPI1 CE2"
+  };
+  var STEPS_DEFAULT = { half: 4096, full: 2048, wave: 2048 };
+
+  function pinOptions() {
+    var html = "";
+    for (var g = 0; g <= 27; g++) {
+      var txt = "GPIO" + g + " (Pin " + HEADER[g] + ")" + (USED_BY[g] ? " - " + USED_BY[g] : "");
+      html += '<option value="' + g + '">' + txt + "</option>";
+    }
+    return html;
+  }
+
+  function updatePins() {
+    var rows = [];
+    var seen = {};
+    var warn = [];
+    for (var i = 1; i <= 4; i++) {
+      var g = $("#node-input-pin" + i).val();
+      rows.push("IN" + i + ": GPIO" + g + " (Pin " + HEADER[g] + ")");
+      if (seen[g]) warn.push("GPIO" + g + " is used twice!");
+      seen[g] = true;
+      if (USED_BY[g]) warn.push("GPIO" + g + " is also " + USED_BY[g] + " (only a problem if that bus is enabled)");
+    }
+    var html = "<b>ULN2003 board</b><br>" + rows.join("<br>") +
+      "<br>+ (5-12V): 5V Pin 2 or 4 (or external 5V supply)" +
+      "<br>- : GND Pin 39 (common GND with external supply)" +
+      "<br>Motor: 5-wire plug into the white socket";
+    if (warn.length) html += '<br><span style="color:#c00;">&#9888; ' + warn.join("<br>&#9888; ") + "</span>";
+    $("#stepper-pins").html(html);
+  }
+
+  function updateSpeed() {
+    var spt = Number($("#node-input-stepsPerTurn").val()) || 1;
+    var ms = Math.max(1, Number($("#node-input-stepMs").val()) || 1);
+    var sec = spt * ms / 1000;
+    $("#stepper-speed").text(sec.toFixed(1) + " s per turn (" + (60 / sec).toFixed(1) + " rpm)");
+  }
+
+  RED.nodes.registerType('raspi5-stepper', {
+    category: 'raspi5',
+    color: '#c7e9c0',
+    defaults: {
+      name: {value:""},
+      pin1: {value:"5", required:true},
+      pin2: {value:"6", required:true},
+      pin3: {value:"13", required:true},
+      pin4: {value:"26", required:true},
+      mode: {value:"half", required:true},
+      stepsPerTurn: {value:"4096", required:true, validate: RED.validators.number()},
+      stepMs: {value:"2", required:true, validate: RED.validators.number()},
+      defaultDir: {value:"right"},
+      invert: {value:false},
+      release: {value:true}
+    },
+    inputs: 1,
+    outputs: 1,
+    icon: "font-awesome/fa-cog",
+    label: function() { return this.name || "raspi5-stepper"; },
+    oneditprepare: function() {
+      var node = this;
+      $(".stepper-pin").html(pinOptions());
+      for (var i = 1; i <= 4; i++) $("#node-input-pin" + i).val(String(node["pin" + i]));
+      $(".stepper-pin").on("change", updatePins);
+      updatePins();
+
+      var lastMode = node.mode || "half";
+      $("#node-input-mode").on("change", function() {
+        var m = $(this).val();
+        // adapt steps per turn only if it still had the default of the previous mode
+        if (Number($("#node-input-stepsPerTurn").val()) === STEPS_DEFAULT[lastMode]) {
+          $("#node-input-stepsPerTurn").val(STEPS_DEFAULT[m]);
+        }
+        lastMode = m;
+        updateSpeed();
+      });
+      $("#node-input-stepsPerTurn, #node-input-stepMs").on("change keyup", updateSpeed);
+      updateSpeed();
+    }
+  });
+})();
+</script>
